@@ -10,6 +10,10 @@ import (
 	"time"
 )
 
+var errorCount int64
+var lastError error
+var requestsComplete int64
+
 type requestStat struct {
 	responseTimeMs int64
 	startTime      time.Time
@@ -28,26 +32,14 @@ func main() {
 	flag.Parse()
 
 	averageWindowDuration := time.Duration(*averageWindow)
-	var errorCount int64
-	var lastError error
-	var requestsComplete int64
+
 	requestWindow := make([]requestStat, 5, 5)
 	requestsCompleteChannel := make(chan requestStat, 4*(*concurrency))
 
 	for i := 0; i < *concurrency; i++ {
 		go func(channel chan requestStat) {
 			for {
-				time_start := time.Now()
-				resp, err := http.Get(*url)
-				resp.Body.Close()
-				atomic.AddInt64(&requestsComplete, 1)
-				if err != nil {
-					atomic.AddInt64(&errorCount, 1)
-					lastError = err
-				} else {
-
-					channel <- requestStat{responseTimeMs: int64(time.Since(time_start).Nanoseconds()) / 1000000, startTime: time_start}
-				}
+				makeRequest(channel, *url)
 			}
 
 		}(requestsCompleteChannel)
@@ -68,7 +60,7 @@ func main() {
 				var windowRequestResponseTimeTotal int64
 
 				for _, stat := range requestWindow {
-					if time.Since(stat.startTime) > (averageWindowDuration * time.Second) {
+					if (time.Since(stat.startTime) > (averageWindowDuration * time.Second)) && (len(requestWindow) > 1) {
 						requestWindow = remove(requestWindow, 1)
 					} else {
 						windowRequestCount++
@@ -89,7 +81,7 @@ func main() {
 					windowsAverageMs)
 
 				if lastError != nil {
-					output = fmt.Sprintf("%s - Error Count: %s - Last Error: %s",
+					output = fmt.Sprintf("%s - Error Count: %d - Last Error: %s",
 						output,
 						errorCount,
 						lastError)
@@ -101,4 +93,22 @@ func main() {
 	}()
 
 	bufio.NewReader(os.Stdin).ReadString('\n')
+}
+
+func makeRequest(channel chan requestStat, url string) {
+	time_start := time.Now()
+	resp, err := http.Get(url)
+	defer func() {
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close()
+		}
+	}()
+	atomic.AddInt64(&requestsComplete, 1)
+	if err != nil {
+		atomic.AddInt64(&errorCount, 1)
+		lastError = err
+	} else {
+
+		channel <- requestStat{responseTimeMs: int64(time.Since(time_start).Nanoseconds()) / 1000000, startTime: time_start}
+	}
 }
