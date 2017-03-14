@@ -1,5 +1,7 @@
 ## Measure
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/myles-mcdonnell/measure)](https://goreportcard.com/report/github.com/myles-mcdonnell/measure)
+ 
 cli utility to measure average response time of a get request.
 
 Args
