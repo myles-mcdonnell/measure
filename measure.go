@@ -96,7 +96,7 @@ func main() {
 }
 
 func makeRequest(channel chan requestStat, url string) {
-	time_start := time.Now()
+	timeStart := time.Now()
 	resp, err := http.Get(url)
 	defer func() {
 		if resp != nil && resp.Body != nil {
@@ -109,6 +109,6 @@ func makeRequest(channel chan requestStat, url string) {
 		lastError = err
 	} else {
 
-		channel <- requestStat{responseTimeMs: int64(time.Since(time_start).Nanoseconds()) / 1000000, startTime: time_start}
+		channel <- requestStat{responseTimeMs: int64(time.Since(timeStart).Nanoseconds()) / 1000000, startTime: timeStart}
 	}
 }
